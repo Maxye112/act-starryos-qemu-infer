@@ -1,6 +1,7 @@
 # Build products
 build/
 build-*/
+bin/x64/
 deploy/cpp_onnxruntime/build/
 deploy/cpp_onnxruntime/build-riscv64/
 CMakeFiles/
