@@ -26,21 +26,10 @@ Parameters are stored in:
 deploy/cpp_onnxruntime/config/act_params.json
 ```
 
-## Build on x64 Linux
+## Run on StarryOS/QEMU
 
 ```bash
-cmake -S deploy/cpp_onnxruntime \
-  -B deploy/cpp_onnxruntime/build \
-  -DONNXRUNTIME_ROOT=/home/sakura/Deploy-ACT/third_party/onnxruntime-linux-x64-1.26.0 \
-  -DCMAKE_BUILD_TYPE=Release
-
-cmake --build deploy/cpp_onnxruntime/build -j$(nproc)
-```
-
-## Run
-
-```bash
-deploy/cpp_onnxruntime/build/act_ort_infer \
+bin/act_ort_infer \
   --model artifacts/onnx_quant/balancedcalib_static_qdq_conv_matmul_keep_action_head_fp16.onnx \
   --image output/dataset/videos/observation.images.fpv/chunk-000/frame_000000.jpg \
   --params deploy/cpp_onnxruntime/config/act_params.json \
@@ -66,7 +55,7 @@ Create a lightweight CSV manifest from the LeRobot parquet files:
 Run every frame and compare the first predicted action step with GT:
 
 ```bash
-deploy/cpp_onnxruntime/build/act_ort_infer \
+bin/act_ort_infer \
   --model artifacts/onnx_quant/balancedcalib_static_qdq_conv_matmul_keep_action_head_fp16.onnx \
   --params deploy/cpp_onnxruntime/config/act_params.json \
   --eval-manifest deploy/cpp_onnxruntime/data/eval_manifest.csv \

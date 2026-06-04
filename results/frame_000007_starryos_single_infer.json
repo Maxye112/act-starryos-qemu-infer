@@ -1,0 +1,47 @@
+{
+  "environment": {
+    "os": "StarryOS",
+    "qemu": "qemu-system-riscv64",
+    "kernel": "/home/sakura/OSproj57/StarryOS/workspace_riscv64-qemu-virt.bin",
+    "smp": 1,
+    "executable": "bin/riscv64/act_ort_infer"
+  },
+  "model": "models/balancedcalib_static_qdq_conv_matmul_keep_action_head_fp16.onnx",
+  "frame_index": 7,
+  "episode_index": 1,
+  "image_path": "videos/observation.images.fpv/chunk-000/frame_000007.jpg",
+  "target_image_path": "/root/proj57-act/data/frame_000000.jpg",
+  "input_state": {
+    "left_vel": -0.100000001,
+    "right_vel": 0.100000001
+  },
+  "ground_truth": {
+    "left_vel": -0.100000001,
+    "right_vel": 0.100000001,
+    "wheel_diff": -0.200000002,
+    "direction": "left"
+  },
+  "prediction_first_step": {
+    "left_vel": -0.10913,
+    "right_vel": 0.106983,
+    "gripper_target": 1.03931e-10,
+    "wheel_diff": -0.216113,
+    "direction": "left"
+  },
+  "comparison": {
+    "wheel_diff_error": -0.016112998,
+    "direction_match": true
+  },
+  "runtime": {
+    "threads": 1,
+    "warmup": 1,
+    "runs": 1,
+    "avg_latency_ms": 5325.1
+  },
+  "memory": {
+    "VmRSS_after_runs_kb": 78556,
+    "VmHWM_after_runs_kb": 78556,
+    "VmSize_after_runs_kb": 90292,
+    "ORT_allocator_peak_after_runs_bytes": 20837135
+  }
+}

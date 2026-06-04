@@ -8,7 +8,6 @@ StarryOS CPU deployment.
 | artifact | path | size |
 | --- | --- | ---: |
 | RISC-V executable | `deploy/cpp_onnxruntime/build-riscv64/act_ort_infer` | 172 KB |
-| x64 executable | `deploy/cpp_onnxruntime/build/act_ort_infer` | 252 KB |
 | selected quantized ONNX | `artifacts/onnx_quant/balancedcalib_static_qdq_conv_matmul_keep_action_head_fp16.onnx` | 50 MB |
 | FP32 reference ONNX | `artifacts/onnx_quant/act_finetuned_fp32.onnx` | 194 MB |
 | deployment params | `deploy/cpp_onnxruntime/config/act_params.json` |  |
@@ -67,19 +66,6 @@ otherwise                    -> straight
 
 ## Build
 
-x64:
-
-```bash
-cd /home/sakura/OSproj57/proj57
-
-cmake -S deploy/cpp_onnxruntime \
-  -B deploy/cpp_onnxruntime/build \
-  -DONNXRUNTIME_ROOT=/home/sakura/Deploy-ACT/third_party/onnxruntime-linux-x64-1.26.0 \
-  -DCMAKE_BUILD_TYPE=Release
-
-cmake --build deploy/cpp_onnxruntime/build -j$(nproc)
-```
-
 RISC-V musl:
 
 ```bash
@@ -94,7 +80,7 @@ cmake -S deploy/cpp_onnxruntime \
 cmake --build deploy/cpp_onnxruntime/build-riscv64 -j$(nproc)
 ```
 
-Both builds were verified successfully.
+The RISC-V build was verified successfully.
 
 ## Deploy to StarryOS Rootfs
 
@@ -182,7 +168,7 @@ bin/act_ort_infer \
   --track-allocator
 ```
 
-x64 closed-loop validation, selected quantized model:
+Closed-loop validation, selected quantized model:
 
 ```text
 samples: 666
@@ -271,14 +257,14 @@ after_runs peak       ~= 19.9 MB
 ## Stability
 
 The executable reuses a single ONNX Runtime session for all frames in dataset
-evaluation. The closed-loop x64 run completed 666 frames without process errors.
+evaluation. The closed-loop run completed 666 frames without process errors.
 
 The StarryOS/QEMU single-frame and benchmark runs completed with stable memory
 reporting through `/proc/self/status`, `/proc/self/statm`, and allocator tracking.
 
 ## Reproducibility Checklist
 
-1. Build x64 and RISC-V binaries.
+1. Build the RISC-V binary.
 2. Generate `eval_manifest.csv`.
 3. Deploy to StarryOS rootfs.
 4. Boot QEMU with `workspace_riscv64-qemu-virt.bin`.
