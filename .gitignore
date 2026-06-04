@@ -1,0 +1,32 @@
+# Build products
+build/
+build-*/
+deploy/cpp_onnxruntime/build/
+deploy/cpp_onnxruntime/build-riscv64/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Runtime packages and rootfs/images
+onnxruntime-*/
+*.img
+*.qcow2
+*.bin
+*.elf
+
+# Large training/checkpoint artifacts
+checkpoints/
+*.pt
+*.pth
+
+# Python/cache
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Logs
+*.log
+*.tmp
