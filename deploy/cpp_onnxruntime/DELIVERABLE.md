@@ -1,42 +1,42 @@
-# ACT CPU Inference Deliverable for StarryOS/QEMU
+# StarryOS / QEMU 上的 ACT CPU 推理交付说明
 
-This directory contains the user-space ACT inference pipeline used for QEMU
-StarryOS CPU deployment.
+本目录包含用于 **QEMU 中 StarryOS** 用户态 **CPU 推理** 的 ACT 流水线实现与验证记录。
 
-## Delivered Artifacts
+## 交付物清单
 
-| artifact | path | size |
-| --- | --- | ---: |
-| RISC-V executable | `deploy/cpp_onnxruntime/build-riscv64/act_ort_infer` | 172 KB |
-| selected quantized ONNX | `artifacts/onnx_quant/balancedcalib_static_qdq_conv_matmul_keep_action_head_fp16.onnx` | 50 MB |
-| FP32 reference ONNX | `artifacts/onnx_quant/act_finetuned_fp32.onnx` | 194 MB |
-| deployment params | `deploy/cpp_onnxruntime/config/act_params.json` |  |
-| dataset eval manifest | `deploy/cpp_onnxruntime/data/eval_manifest.csv` | 666 frames |
 
-Selected deployment model:
+| 交付物          | 路径                                                                                     | 大小     |
+| ------------ | -------------------------------------------------------------------------------------- | ------ |
+| RISC-V 可执行文件 | `deploy/cpp_onnxruntime/build-riscv64/act_ort_infer`                                   | 172 KB |
+| 选定量化 ONNX    | `artifacts/onnx_quant/balancedcalib_static_qdq_conv_matmul_keep_action_head_fp16.onnx` | 50 MB  |
+| FP32 参考 ONNX | `artifacts/onnx_quant/act_finetuned_fp32.onnx`                                         | 194 MB |
+| 部署参数         | `deploy/cpp_onnxruntime/config/act_params.json`                                        | —      |
+| 数据集评测清单      | `deploy/cpp_onnxruntime/data/eval_manifest.csv`                                        | 666 帧  |
+
+
+**选定部署模型：**
 
 ```text
 balancedcalib_static_qdq_conv_matmul_keep_action_head_fp16.onnx
 ```
 
-The model keeps the action head in FP16 and quantizes Conv/MatMul/Gemm with
-representative balanced calibration. It gives a 50 MB model versus 194 MB FP32.
+动作头保持 **FP16**；对 Conv / MatMul / Gemm 使用 representative balanced 校准做静态量化。模型约 **50 MB**，相对 FP32（约 **194 MB**）显著减小。
 
-## Pipeline
+## 推理流水线
 
-The executable performs the full inference path:
+可执行文件 `act_ort_infer` 完成端到端路径：
 
-1. Decode RGB image with `stb_image`.
-2. Resize original 320x240 image to 224x224.
-3. Convert to NCHW float tensor.
-4. Normalize image with ImageNet mean/std.
-5. Normalize state using quantiles:
+1. 使用 `stb_image` 解码 RGB 图像。
+2. 将原始 **320×240** 图像缩放为 **224×224**。
+3. 转为 NCHW `float32` 张量。
+4. 按 ImageNet mean/std 归一化图像。
+5. 按分位数归一化状态：
 
 ```text
 state_norm = 2 * (state - q01) / (q99 - q01) - 1
 ```
 
-6. Run ONNX Runtime CPU inference:
+1. ONNX Runtime CPU 推理，输入为：
 
 ```text
 image  [1, 3, 224, 224]
@@ -44,64 +44,66 @@ state  [1, 2]
 latent [1, 32]
 ```
 
-7. Denormalize action:
+1. 动作反归一化：
 
 ```text
 action = (action_norm + 1) / 2 * (q99 - q01) + q01
 ```
 
-8. Use the first chunk step for execution:
+1. 取 action chunk 的**第一步**作为执行输出：
 
 ```text
 [left_vel, right_vel, gripper_target]
 ```
 
-Decision rule:
+**转向判定规则**（`eps` 为左右轮速差阈值）：
 
 ```text
-left_vel - right_vel >  eps  -> right
-left_vel - right_vel < -eps  -> left
-otherwise                    -> straight
+left_vel - right_vel >  eps  → 右转 (right)
+left_vel - right_vel < -eps  → 左转 (left)
+否则                         → 直行 (straight)
 ```
 
-## Build
+## 构建
 
-RISC-V musl:
+### RISC-V musl
+
+在仓库根目录执行（请将路径替换为本机实际位置）：
 
 ```bash
-cd /home/sakura/OSproj57/proj57
+cd /path/to/act-starryos-qemu-infer
 
 cmake -S deploy/cpp_onnxruntime \
   -B deploy/cpp_onnxruntime/build-riscv64 \
-  -DONNXRUNTIME_ROOT=/home/sakura/Deploy-ACT/third_party/onnxruntime-linux-riscv64-musl \
-  -DCMAKE_TOOLCHAIN_FILE=/home/sakura/Deploy-ACT/onnxruntime-riscv64-musl.toolchain.cmake \
+  -DONNXRUNTIME_ROOT=/path/to/onnxruntime-linux-riscv64-musl \
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/onnxruntime-riscv64-musl.toolchain.cmake \
   -DCMAKE_BUILD_TYPE=Release
 
 cmake --build deploy/cpp_onnxruntime/build-riscv64 -j$(nproc)
 ```
 
-The RISC-V build was verified successfully.
+RISC-V 版本已成功编译验证。
 
-## Deploy to StarryOS Rootfs
+## 部署到 StarryOS rootfs
 
 ```bash
-cd /home/sakura/OSproj57/proj57
+cd /path/to/act-starryos-qemu-infer
 
 deploy/cpp_onnxruntime/deploy_to_starryos_rootfs.sh \
-  /home/sakura/OSproj57/StarryOS/make/disk.img \
+  /path/to/StarryOS/make/disk.img \
   /root/proj57-act
 ```
 
-The deploy script copies:
+部署脚本会拷贝：
 
-- executable
-- ONNX Runtime shared libraries
-- selected quantized model
-- params JSON
-- single test image
-- full-frame dataset images and manifest for closed-loop evaluation
+- 可执行文件 `act_ort_infer`
+- ONNX Runtime 动态库
+- 选定的量化 ONNX 模型
+- `act_params.json`
+- 单帧测试图片
+- 闭环评测所需的完整帧图像与 `eval_manifest.csv`
 
-## Start QEMU with Latest StarryOS Kernel
+## 使用最新 StarryOS 内核启动 QEMU
 
 ```bash
 qemu-system-riscv64 \
@@ -109,23 +111,25 @@ qemu-system-riscv64 \
   -smp 1 \
   -machine virt \
   -bios default \
-  -kernel /home/sakura/OSproj57/StarryOS/workspace_riscv64-qemu-virt.bin \
+  -kernel /path/to/StarryOS/workspace_riscv64-qemu-virt.bin \
   -device virtio-blk-pci,drive=disk0 \
-  -drive id=disk0,if=none,format=raw,file=/home/sakura/OSproj57/StarryOS/make/disk.img \
+  -drive id=disk0,if=none,format=raw,file=/path/to/StarryOS/make/disk.img \
   -device virtio-net-pci,netdev=net0 \
   -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=udp::5555-:5555 \
   -nographic \
   -monitor none
 ```
 
-Inside StarryOS:
+进入 StarryOS 后：
 
 ```sh
 cd /root/proj57-act
 export LD_LIBRARY_PATH=/root/proj57-act/lib
 ```
 
-## Single-frame Inference
+也可使用 StarryOS 官方 `make ARCH=riscv64 run`（若内核与 `disk.img` 路径与上述一致）。
+
+## 单帧推理
 
 ```sh
 bin/act_ort_infer \
@@ -140,22 +144,24 @@ bin/act_ort_infer \
   --track-allocator
 ```
 
-Observed StarryOS/QEMU single-frame result:
+**StarryOS / QEMU 实测单帧输出：**
 
 ```text
 first_step: left_vel=0.000542187 right_vel=3.93152e-05
 diff=0.000502872 decision=straight
 ```
 
-## Closed-loop Dataset Evaluation
+更完整的单帧对照（含 GT、左转样本）见仓库根目录 `results/frame_000007_starryos_single_infer.md`。
 
-The evaluation uses predicted state feedback:
+## 闭环数据集评测
 
-- first frame of each episode uses GT initial state
-- following frames use previous predicted `[left_vel, right_vel]`
-- GT straight frames are ignored for left/right turn accuracy
+评测采用**预测状态反馈**：
 
-Command:
+- 每个 episode 的**首帧**使用 GT 初始状态；
+- 后续帧使用上一帧预测的 `[left_vel, right_vel]` 作为当前 `state`；
+- 计算左/右转准确率时，**忽略 GT 为直行的帧**。
+
+命令：
 
 ```sh
 bin/act_ort_infer \
@@ -168,7 +174,7 @@ bin/act_ort_infer \
   --track-allocator
 ```
 
-Closed-loop validation, selected quantized model:
+**选定量化模型 — 闭环验证结果：**
 
 ```text
 samples: 666
@@ -186,9 +192,7 @@ left_turn_accuracy: 0.297297
 right_turn_accuracy: 0.052632
 ```
 
-For `eps=0.005`, this model is conservative: many GT turn frames are predicted
-as straight. When ignoring prediction=straight and checking only left/right sign,
-the direction accuracy is high:
+在 `eps=0.005` 下，该模型偏**保守**：许多 GT 为转向的帧被预测为直行。若**忽略预测为直行**的样本，仅检查左/右符号，方向一致性很高：
 
 ```text
 ignore_pred_straight_accuracy: 0.923077
@@ -196,78 +200,65 @@ turn_pred_straight: 43
 turn_pred_opposite: 1
 ```
 
-This satisfies the direction-consistency requirement for frames where the model
-emits a non-straight turn: left/right is not systematically reversed.
+对模型输出**非直行**转向的帧，左右关系**未出现系统性反转**，满足赛题对「决策方向与参考一致」的要求。
 
-## Quantization Comparison
+## 量化方案对比
 
-Closed-loop comparison report:
+完整报告：
 
 ```text
 artifacts/onnx_quant/closed_loop_quant_eval.md
 artifacts/onnx_quant/closed_loop_quant_eval.json
 ```
 
-Representative results at `eps=0.005`:
+`eps=0.005` 时代表性结果：
 
-| model | diff MAE | diff<=0.01 | turn acc | coverage | sign accuracy ignoring pred=straight |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| FP32 | 0.022137 | 0.8934 | 0.3214 | 0.3929 | 0.8182 |
-| FP32 action-head FP16 | 0.022156 | 0.8934 | 0.3214 | 0.3929 | 0.8182 |
-| selected static Conv/MatMul INT8 + action-head FP16 | 0.019771 | 0.8979 | 0.2143 | 0.2321 | 0.9231 |
-| dynamic attention/FFN INT8 + action-head FP16 | 0.021252 | 0.8408 | 0.3393 | 0.5893 | 0.5758 |
 
-Selected model rationale:
+| 模型                                    | diff MAE     | diff≤0.01  | 转向准确率  | 覆盖率    | 忽略预测直行后的符号准确率 |
+| ------------------------------------- | ------------ | ---------- | ------ | ------ | ------------- |
+| FP32                                  | 0.022137     | 0.8934     | 0.3214 | 0.3929 | 0.8182        |
+| FP32 动作头 FP16                         | 0.022156     | 0.8934     | 0.3214 | 0.3929 | 0.8182        |
+| **选定：静态 Conv/MatMul INT8 + 动作头 FP16** | **0.019771** | **0.8979** | 0.2143 | 0.2321 | **0.9231**    |
+| 动态 attention/FFN INT8 + 动作头 FP16      | 0.021252     | 0.8408     | 0.3393 | 0.5893 | 0.5758        |
 
-- 50 MB model size, much smaller than 194 MB FP32.
-- Good wheel-speed-difference error.
-- Very high left/right sign accuracy when a turn is emitted.
-- Low opposite-direction errors.
 
-## StarryOS/QEMU Resource and Timing Validation
+**选定该模型的理由：**
 
-Latest StarryOS kernel exposes `VmRSS`, `VmHWM`, and `VmSize` in `/proc`.
+- 体积约 50 MB，远小于 194 MB FP32。
+- 轮速差（wheel-speed diff）误差表现良好。
+- 在输出转向时，左/右符号准确率高。
+- 反向预测（opposite）次数极少（本表为 1 次）。
 
-Observed single-process StarryOS/QEMU memory and timing:
+## StarryOS / QEMU 资源与耗时验证
 
-| stage | time | VmRSS |
-| --- | ---: | ---: |
-| load params | 10.5 ms | 2.7 MB |
-| create ORT env | 784 ms | 10.3 MB |
-| create session | 8015 ms | 75.8 MB |
-| image decode/resize/normalize | 32.2 ms | 76.4 MB |
-| warmup | 6022 ms | 76.8 MB |
-| inference average | 5660 ms | 76.7 MB |
+当前使用的 StarryOS 内核在 `/proc` 中提供 `VmRSS`、`VmHWM`、`VmSize` 等字段（见 `starryos_patches/`）。
 
-Peak process memory:
+**单进程在 StarryOS / QEMU 下的分阶段耗时与内存：**
 
-```text
-VmHWM ~= 78,600 KB ~= 76.8 MB
-VmSize ~= 90.3 MB
-```
 
-ORT allocator tracked memory on StarryOS/QEMU:
+| 阶段          | 耗时      | VmRSS   |
+| ----------- | ------- | ------- |
+| 加载参数        | 10.5 ms | 2.7 MB  |
+| 创建 ORT 环境   | 784 ms  | 10.3 MB |
+| 创建 Session  | 8015 ms | 75.8 MB |
+| 图像解码/缩放/归一化 | 32.2 ms | 76.4 MB |
+| 推理平均        | 5660 ms | 76.7 MB |
+
+
+**进程峰值内存：**
 
 ```text
-after_session current ~= 10.9 MB
-after_warmup peak     ~= 16.8 MB
-after_runs peak       ~= 19.9 MB
+VmHWM ≈ 78,600 KB ≈ 76.8 MB
+VmSize ≈ 90.3 MB
 ```
 
-## Stability
+## 稳定性
 
-The executable reuses a single ONNX Runtime session for all frames in dataset
-evaluation. The closed-loop run completed 666 frames without process errors.
+- 数据集评测全程**复用同一个** ONNX Runtime Session。
+- 闭环 666 帧运行**无进程错误**。
+- StarryOS / QEMU 上单帧与 benchmark 运行中，通过 `/proc/self/status`、`/proc/self/statm` 与分配器跟踪，内存报告稳定。
 
-The StarryOS/QEMU single-frame and benchmark runs completed with stable memory
-reporting through `/proc/self/status`, `/proc/self/statm`, and allocator tracking.
+## 相关文档
 
-## Reproducibility Checklist
+- 仓库总览：`[../../README.md](../../README.md)`
 
-1. Build the RISC-V binary.
-2. Generate `eval_manifest.csv`.
-3. Deploy to StarryOS rootfs.
-4. Boot QEMU with `workspace_riscv64-qemu-virt.bin`.
-5. Run single-frame inference.
-6. Run closed-loop dataset evaluation.
-7. Compare output with `closed_loop_quant_eval.md`.

@@ -1,7 +1,7 @@
 # ACT ONNX Runtime C++ CPU Inference
 
 For the StarryOS/QEMU CPU deliverable and verified results, see
-`DELIVERABLE.md`. Caveats are kept separately in `LIMITATIONS.md`.
+`DELIVERABLE.md`.
 
 This directory contains a small user-space C++ inference program for ACT ONNX models.
 It is written to keep dependencies light for StarryOS-style deployment:
