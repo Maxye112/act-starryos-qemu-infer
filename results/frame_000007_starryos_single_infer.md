@@ -1,75 +1,30 @@
-# StarryOS/QEMU Single-frame Inference Result
+# StarryOS/QEMU 单帧推理结果样例
 
-Environment:
+## 环境
 
-```text
-OS: StarryOS under qemu-system-riscv64
-Kernel: /home/sakura/OSproj57/StarryOS/workspace_riscv64-qemu-virt.bin
-CPU mode: QEMU CPU, -smp 1
-Executable: bin/riscv64/act_ort_infer
-```
+StarryOS，QEMU 模拟 RISC-V，单核；使用补丁后的内核以便统计内存。
 
-Model:
+## 测试说明
 
-```text
-models/balancedcalib_static_qdq_conv_matmul_keep_action_head_fp16.onnx
-```
+选取数据集中一帧**左转**场景：输入左右轮速约为 `[-0.10, 0.10]`，真值方向为左转。
 
-Frame:
+## 预测与对比
 
-```text
-dataset frame: videos/observation.images.fpv/chunk-000/frame_000007.jpg
-target path: /root/proj57-act/data/frame_000000.jpg
-```
+| 项目 | 真值 | 预测 |
+| --- | --- | --- |
+| 左轮速 | -0.100 | -0.109 |
+| 右轮速 | 0.100 | 0.107 |
+| 轮速差 | -0.200 | -0.216 |
+| 转向 | 左转 | 左转 |
 
-Input state:
+轮速差误差约 **-0.016**，**方向一致**。
+
+## 耗时与内存
 
 ```text
-left_vel=-0.100000001
-right_vel=0.100000001
+平均推理耗时：约 5325 ms（单次计时）
+VmHWM：       约 76 MB
+VmRSS：       约 76 MB
 ```
 
-Ground truth action:
-
-```text
-gt_left_vel=-0.100000001
-gt_right_vel=0.100000001
-gt_wheel_diff=-0.200000002
-gt_direction=left
-```
-
-Predicted first action step on StarryOS:
-
-```text
-pred_left_vel=-0.10913
-pred_right_vel=0.106983
-pred_gripper_target=1.03931e-10
-pred_wheel_diff=-0.216113
-pred_direction=left
-```
-
-Comparison:
-
-```text
-wheel_diff_error=pred_wheel_diff - gt_wheel_diff = -0.016112998
-direction_match=true
-```
-
-Runtime and memory:
-
-```text
-threads=1
-warmup=1
-runs=1
-avg_latency_ms=5325.1
-VmRSS_after_runs_kb=78556
-VmHWM_after_runs_kb=78556
-VmSize_after_runs_kb=90292
-ORT_allocator_peak_after_runs_bytes=20837135
-```
-
-Raw first-step output:
-
-```text
-first_step: left_vel=-0.10913 right_vel=0.106983 gripper_target=1.03931e-10 diff=-0.216113 decision=left
-```
+说明：在 QEMU TCG 下延迟偏高属模拟环境正常现象；内存峰值与分阶段统计与交付说明中的单帧观测一致。

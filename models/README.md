@@ -1,17 +1,7 @@
-# Models
+# 模型说明
 
-This repository includes the selected deployment model:
+**部署模型**：内部代号 `balanced_static_conv_matmul_head_fp16`（均衡校准、Conv/MatMul 静态 INT8 量化、动作头 FP16），约 **50 MB**。各段英文下划线的含义见「量化方案对比」章节开头的说明。
 
-```text
-balancedcalib_static_qdq_conv_matmul_keep_action_head_fp16.onnx
-```
+**通俗理解**：在 FP32 基线上，只对卷积/矩阵乘做静态量化以减小体积，输出动作的头部保持半精度，避免转向决策明显变差。
 
-It is the 50 MB balanced-calibration static QDQ Conv/MatMul quantized ACT model
-with the action head kept in FP16.
-
-The FP32 model and intermediate quantization variants are not included here to
-keep the repository compact. Their evaluation results are included under:
-
-```text
-artifacts/onnx_quant/closed_loop_quant_eval.md
-```
+选型依据：在闭环 666 帧评测中，轮速差误差优于 FP32，且在模型给出转向时左/右符号与真值一致率高（详见量化对比章节）。FP32 及中间量化变体未随仓库提交，仅保留评测数据。

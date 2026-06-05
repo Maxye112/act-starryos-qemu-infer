@@ -1,32 +1,30 @@
-# ACT ONNX Runtime C++ CPU Inference
+# ACT ONNX Runtime C++ CPU 推理
 
-For the StarryOS/QEMU CPU deliverable and verified results, see
-`DELIVERABLE.md`.
+StarryOS/QEMU CPU 交付物与已验证结果见 `DELIVERABLE.md`。
 
-This directory contains a small user-space C++ inference program for ACT ONNX models.
-It is written to keep dependencies light for StarryOS-style deployment:
+本目录包含用于 ACT ONNX 模型的轻量用户态 C++ 推理程序，依赖尽量少，便于 StarryOS 类环境部署：
 
 - ONNX Runtime C/C++ API
-- `stb_image.h` for JPEG/PNG decoding
-- hand-written bilinear resize, normalization, state/action quantile scaling
+- `stb_image.h` 解码 JPEG/PNG
+- 手写双线性缩放、归一化、状态/动作分位数缩放
 
-## Inputs
+## 输入
 
-The program feeds the exported ACT ONNX graph with:
+程序向导出的 ACT ONNX 图提供：
 
-| name | shape | source |
+| 名称 | 形状 | 来源 |
 | --- | --- | --- |
-| `image` | `[1, 3, 224, 224]` | decoded RGB image, resized and normalized |
-| `state` | `[1, 2]` | raw `[left_vel, right_vel]`, quantile-normalized |
-| `latent` | `[1, 32]` | fixed CVAE latent mean from `final_model.pt` |
+| `image` | `[1, 3, 224, 224]` | 解码后的 RGB 图像，缩放并归一化 |
+| `state` | `[1, 2]` | 原始 `[left_vel, right_vel]`，经分位数归一化 |
+| `latent` | `[1, 32]` | 来自 `final_model.pt` 的固定 CVAE latent 均值 |
 
-Parameters are stored in:
+参数文件：
 
 ```text
 deploy/cpp_onnxruntime/config/act_params.json
 ```
 
-## Run on StarryOS/QEMU
+## 在 StarryOS/QEMU 上运行
 
 ```bash
 bin/act_ort_infer \
@@ -40,19 +38,19 @@ bin/act_ort_infer \
   --deadband 0.01
 ```
 
-Add `--print-chunk` to print all 8 predicted action steps.
+加 `--print-chunk` 可打印全部 8 步预测动作。
 
-## Dataset Evaluation
+## 数据集评测
 
-Create a lightweight CSV manifest from the LeRobot parquet files:
+从 LeRobot parquet 生成轻量 CSV 清单：
 
 ```bash
-/home/sakura/miniforge3/envs/lerobot/bin/python tools/make_cpp_eval_manifest.py \
+python tools/make_cpp_eval_manifest.py \
   --data-dir output/dataset \
   --output deploy/cpp_onnxruntime/data/eval_manifest.csv
 ```
 
-Run every frame and compare the first predicted action step with GT:
+逐帧运行并与 GT 比较第一步预测：
 
 ```bash
 bin/act_ort_infer \
@@ -65,75 +63,68 @@ bin/act_ort_infer \
   --track-allocator
 ```
 
-The report includes wheel-speed-difference MAE/RMSE and left/right turn accuracy.
-By default dataset evaluation uses closed-loop state feedback: the first frame of
-each episode uses the manifest GT state, and later frames use the previous
-prediction's `[left_vel, right_vel]` as the next `state` input. Use
-`--eval-open-loop-state` only for debugging the older GT-state-per-frame
-evaluation. GT straight frames are ignored for turn accuracy.
+报告包含轮速差 MAE/RMSE 与左/右转准确率。默认采用闭环状态反馈：每个 episode 首帧使用清单中的 GT 状态，后续帧使用上一帧预测的 `[left_vel, right_vel]` 作为下一帧 `state` 输入。仅调试旧版「每帧 GT 状态」评测时使用 `--eval-open-loop-state`。计算转向准确率时忽略 GT 为直行的帧。
 
-## StarryOS / RISC-V build sketch
+## StarryOS / RISC-V 构建要点
 
-Use an ONNX Runtime package built for the StarryOS user-space ABI. A riscv64-musl
-package is available locally in this workspace:
+使用为 StarryOS 用户态 ABI 构建的 ONNX Runtime 包（本工作区可用 riscv64-musl 包）：
 
 ```bash
 cmake -S deploy/cpp_onnxruntime \
   -B deploy/cpp_onnxruntime/build-riscv64 \
-  -DONNXRUNTIME_ROOT=/home/sakura/Deploy-ACT/third_party/onnxruntime-linux-riscv64-musl \
+  -DONNXRUNTIME_ROOT=/path/to/onnxruntime-linux-riscv64-musl \
   -DCMAKE_TOOLCHAIN_FILE=/path/to/starryos-riscv64-toolchain.cmake \
   -DCMAKE_BUILD_TYPE=Release
 
 cmake --build deploy/cpp_onnxruntime/build-riscv64 -j$(nproc)
 ```
 
-Bundle these files on the target:
+目标机上需打包：
 
 ```text
 act_ort_infer
 libonnxruntime.so*
 balancedcalib_static_qdq_conv_matmul_keep_action_head_fp16.onnx
 act_params.json
-input image(s)
+输入图像
 ```
 
-Set `LD_LIBRARY_PATH` if ONNX Runtime is not in the system library path:
+若 ONNX Runtime 不在系统库路径，设置：
 
 ```bash
 export LD_LIBRARY_PATH=/path/to/onnxruntime/lib:$LD_LIBRARY_PATH
 ```
 
-## CPU performance knobs
+## CPU 性能相关参数
 
-The program exposes ONNX Runtime CPU options:
+程序暴露的 ONNX Runtime CPU 选项：
 
-- `--threads N`: sets intra-op threads to `N`, inter-op to `max(1, N/2)`.
-- `--spin`: enables ONNX Runtime thread spinning. This can reduce latency but burns CPU.
-- `--no-arena`: disables ORT CPU memory arena. Usually slower, but useful for debugging memory pressure.
-- `--no-mem-pattern`: disables memory pattern optimization. Usually keep enabled for fixed-shape inference.
-- `--warmup N --runs N`: use warmup and averaged timed runs for stable latency numbers.
+- `--threads N`：算子内线程数为 `N`，算子间为 `max(1, N/2)`。
+- `--spin`：启用 ORT 线程自旋，可能降低延迟但占用更多 CPU。
+- `--no-arena`：关闭 ORT CPU 内存 arena，通常更慢，便于排查内存压力。
+- `--no-mem-pattern`：关闭内存模式优化；固定形状推理一般保持默认开启。
+- `--warmup N --runs N`：预热与多次计时取平均，便于稳定测延迟。
 
-For fixed-shape ACT inference, the default memory arena and memory pattern should stay enabled.
-Start with `--threads` equal to available CPU cores, then benchmark lower values to avoid oversubscription.
+固定形状 ACT 推理建议保持默认 memory arena 与 memory pattern。`--threads` 可先设为可用 CPU 核数，再逐步降低以避免过度订阅。
 
-## Output
+## 输出
 
-The model returns `action [1, 8, 3]`. The program denormalizes it using:
+模型返回 `action [1, 8, 3]`，反归一化公式：
 
 ```text
 (action + 1) / 2 * (q99 - q01) + q01
 ```
 
-It prints the first step:
+打印第一步：
 
 ```text
 first_step: left_vel=... right_vel=... gripper_target=... diff=... decision=...
 ```
 
-`decision` uses:
+`decision` 判定规则：
 
 ```text
-abs(left_vel - right_vel) < deadband -> straight
-left_vel - right_vel > deadband     -> right
-left_vel - right_vel < -deadband    -> left
+|left_vel - right_vel| < deadband → 直行 (straight)
+left_vel - right_vel > deadband     → 右转 (right)
+left_vel - right_vel < -deadband    → 左转 (left)
 ```
