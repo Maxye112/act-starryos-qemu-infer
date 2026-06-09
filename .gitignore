@@ -31,3 +31,11 @@ venv/
 # Logs
 *.log
 *.tmp
+
+# Windows alternate data streams
+*:Zone.Identifier
+*.bak
+
+# Large ONNX quant artifacts (see models/ for deployment model)
+artifacts/onnx_quant/*.onnx
+artifacts/onnx_quant/*.tmp.onnx

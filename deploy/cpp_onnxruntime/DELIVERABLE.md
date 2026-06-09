@@ -22,7 +22,7 @@
 
 - 交叉编译得到 RISC-V 可执行文件，与 ONNX Runtime 库、量化模型、参数及评测图像一并装入 StarryOS 根文件系统。  
 - 使用 **QEMU + StarryOS** 启动（内存 1G、单核），在系统内运行推理程序。  
-- 内核侧对 `/proc` 做了小补丁，以便读取 **VmRSS / VmHWM**（见补丁说明章节）。
+- 内核侧对 `/proc` 做了小补丁，以便读取 **VmRSS / VmHWM**（见 [`sg2002-act-starryos/patches/starryos_memstat/`](https://github.com/Maxye112/sg2002-act-starryos/tree/main/patches/starryos_memstat)）。
 
 ## 单帧验证（StarryOS / QEMU）
 

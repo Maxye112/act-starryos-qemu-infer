@@ -1,0 +1,150 @@
+{
+  "metadata": {
+    "title": "StarryOS QEMU 推理结果汇总",
+    "target_frames": [
+      37,
+      59,
+      228,
+      229,
+      313,
+      331,
+      392,
+      463,
+      542,
+      586
+    ],
+    "total_frames": 10,
+    "timestamp": "2026-06-06"
+  },
+  "models": {
+    "fp32": {
+      "name": "原始 FP32 模型",
+      "path": "artifacts/onnx_quant/act_finetuned_fp32.onnx",
+      "size_mb": 194,
+      "status": "参考模型",
+      "metrics": {
+        "diff_mae": 0.022137,
+        "diff_rmse": 0.060239,
+        "diff_acc_le_0.01": 0.893393,
+        "turn_accuracy_0.005": 0.321429,
+        "sign_no_straight_0.005": 0.818182
+      }
+    },
+    "fp32_action_head_fp16": {
+      "name": "FP32 + 动作头 FP16",
+      "path": "artifacts/onnx_quant/fp32_action_head_fp16.onnx",
+      "size_mb": 194,
+      "status": "参考模型",
+      "metrics": {
+        "diff_mae": 0.022156,
+        "diff_rmse": 0.060246,
+        "diff_acc_le_0.01": 0.893393,
+        "turn_accuracy_0.005": 0.321429,
+        "sign_no_straight_0.005": 0.818182
+      }
+    },
+    "int8_fp16_deployed": {
+      "name": "选定部署模型（INT8+FP16 混合量化）",
+      "path": "models/balancedcalib_static_qdq_conv_matmul_keep_action_head_fp16.onnx",
+      "size_mb": 50,
+      "quantization_strategy": "对 Conv/MatMul/Gemm 使用 balanced 校准做静态 QDQ 量化，动作头保持 FP16",
+      "status": "已部署",
+      "metrics": {
+        "diff_mae": 0.019771,
+        "diff_rmse": 0.057689,
+        "diff_acc_le_0.01": 0.897898,
+        "turn_accuracy_0.005": 0.214286,
+        "sign_no_straight_0.005": 0.923077
+      }
+    }
+  },
+  "ground_truth_summary": {
+    "total_frames": 10,
+    "frames": {
+      "37": {
+        "episode": 2,
+        "left_vel": -0.100000001,
+        "right_vel": 0.100000001,
+        "gripper_target": 0.0,
+        "image_path": "videos/observation.images.fpv/chunk-000/frame_000037.jpg"
+      },
+      "59": {
+        "episode": 3,
+        "left_vel": -0.100000001,
+        "right_vel": 0.100000001,
+        "gripper_target": 0.0,
+        "image_path": "videos/observation.images.fpv/chunk-000/frame_000059.jpg"
+      },
+      "228": {
+        "episode": 11,
+        "left_vel": 0.100000001,
+        "right_vel": -0.100000001,
+        "gripper_target": 0.0,
+        "image_path": "videos/observation.images.fpv/chunk-000/frame_000228.jpg"
+      },
+      "229": {
+        "episode": 11,
+        "left_vel": 0.100000001,
+        "right_vel": -0.100000001,
+        "gripper_target": 0.0,
+        "image_path": "videos/observation.images.fpv/chunk-000/frame_000229.jpg"
+      },
+      "313": {
+        "episode": 15,
+        "left_vel": 0.100000001,
+        "right_vel": -0.100000001,
+        "gripper_target": 0.0,
+        "image_path": "videos/observation.images.fpv/chunk-000/frame_000313.jpg"
+      },
+      "331": {
+        "episode": 16,
+        "left_vel": 0.100000001,
+        "right_vel": -0.100000001,
+        "gripper_target": 0.0,
+        "image_path": "videos/observation.images.fpv/chunk-000/frame_000331.jpg"
+      },
+      "392": {
+        "episode": 19,
+        "left_vel": 0.100000001,
+        "right_vel": -0.100000001,
+        "gripper_target": 0.0,
+        "image_path": "videos/observation.images.fpv/chunk-000/frame_000392.jpg"
+      },
+      "463": {
+        "episode": 22,
+        "left_vel": -0.100000001,
+        "right_vel": 0.100000001,
+        "gripper_target": 0.0,
+        "image_path": "videos/observation.images.fpv/chunk-000/frame_000463.jpg"
+      },
+      "542": {
+        "episode": 25,
+        "left_vel": -0.100000001,
+        "right_vel": 0.100000001,
+        "gripper_target": 0.0,
+        "image_path": "videos/observation.images.fpv/chunk-000/frame_000542.jpg"
+      },
+      "586": {
+        "episode": 27,
+        "left_vel": -0.100000001,
+        "right_vel": 0.100000001,
+        "gripper_target": 0.0,
+        "image_path": "videos/observation.images.fpv/chunk-000/frame_000586.jpg"
+      }
+    }
+  },
+  "performance": {
+    "qemu_environment": {
+      "os": "StarryOS",
+      "qemu_version": "8.2.2",
+      "memory_mb": 1024,
+      "cpu_cores": 1,
+      "architecture": "RISC-V 64-bit"
+    },
+    "single_frame_inference": {
+      "avg_latency_ms": 5660,
+      "peak_memory_mb": 76.8,
+      "vmpeak_vmpss_mb": 76.7
+    }
+  }
+}
